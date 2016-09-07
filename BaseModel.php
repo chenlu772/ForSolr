@@ -36,17 +36,19 @@ class BaseModel{
 
     }
 
-    function update(){
+    function updateAll(){
+        $this->deleteByQuery('id:*');//删除现有
         $update = $this->solr->createUpdate();
 
         $model = new Model();
-        $data = $model->db->getRows('st','*','1=1');
+        $data = $model->db->getRows('s_user','*','1=1');
+        if(empty($data)) return 0;
+        $doc_list = [];
         foreach($data as $k => $v){
             $doc = $update->createDocument();
-            $doc->code = $v['code'];
-            $doc->name = $v['name'];
-            $doc->flag = $v['flag'];
-            $doc->create_time = $v['create_time'];
+            foreach($v as $key => $value)
+                $doc->$key = $value;
+
             $doc_list[] = $doc;
         }
 
@@ -56,8 +58,41 @@ class BaseModel{
         return $result->getStatus();
     }
 
-    function query($condition, $sort){
+    function updateById($id){
+        $update = $this->solr->createUpdate();
 
+        $model = new Model();
+        $data = $model->db->getRow('s_user','*','id='.$id);
+        if(empty($data)) return 0;
+
+        $doc = $update->createDocument();
+        foreach($data as $key => $value){
+            $doc->$key = $value;
+        }
+
+        $update->addDocument($doc);
+        $update->addCommit();
+        $result = $this->solr->update($update);
+        return $result->getStatus();
+    }
+
+    function query($condition = 'name:*', $sort_key = 'update_time', $sort_asc = true){
+        $query = $this->solr->createSelect();
+        $search_time = date('YmdHis', time()-90*24*3600);
+        $condition .= ' AND create_time:['.$search_time.' TO * ]';
+        $query->setQuery($condition);
+        $query->setFields(['id']);
+        $query->addSort($sort_key, $sort_asc?$query::SORT_ASC:$query::SORT_DESC);
+        $result = $this->solr->select($query);
+        $numFound = $result->getNumFound();
+        $id_list = [];
+        if($numFound > 0 ){
+            foreach($result as $rs){
+                $id_list[] = $rs->id;
+            }
+        }
+        return ['numFound'=>$numFound, 'id_list'=>$id_list];
+        //array(2) { ["numFound"]=> int(2) ["id_list"]=> array(2) { [0]=> string(1) "1" [1]=> string(1) "2" } }
     }
 
     function deleteById($id){

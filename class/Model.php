@@ -9,7 +9,7 @@ Class Model {
     private $DATAUSER = "root";
     private $DATAPASS = "";
     private $DATACHARSET = "UTF8";
-    private $DATANAME = "test";      // 基础库
+    private $DATANAME = "solrdata";
 
     public $db = null;
 
